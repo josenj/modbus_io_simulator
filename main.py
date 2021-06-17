@@ -19,13 +19,19 @@
 
 from psm import psm
 import time
+import yaml
+
+
+with open('config.yaml', 'r') as file:
+    config = yaml.safe_load(file)
 
 counter = 0
 var_state = False
 
 def hardware_init():
     #Insert your hardware initialization code in here
-    psm.start()
+    server_settings = (config['server']['host'], config['server']['port'])  # (hostname, port)
+    psm.start(server_settings)
 
 def update_inputs():
     #place here your code to update inputs

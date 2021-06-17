@@ -3,6 +3,8 @@ import time
 from pymodbus.server.sync import ModbusTcpServer
 from pymodbus.datastore import ModbusSequentialDataBlock, ModbusSlaveContext, ModbusServerContext
 from enum import Enum
+import ipaddress
+import socket
 
 class var_type(Enum):
     NONE    = 0
@@ -11,7 +13,9 @@ class var_type(Enum):
     ANA_INP = 3
     ANA_OUT = 4
     
+KILL_ADDRESS = 50   # Address to send the Kill Signal
 KILL_SIGNAL = 127
+
 
 #Initialize points database
 d_inputs = ModbusSequentialDataBlock(0, [0]*400)
@@ -117,7 +121,7 @@ def set_var(variable_name, value):
         return 0
 
 def should_quit():
-    if a_outputs.getValues(50)[0] == KILL_SIGNAL:
+    if a_outputs.getValues(KILL_ADDRESS)[0] == KILL_SIGNAL:
         return True
     return False
 
@@ -129,27 +133,20 @@ def run_server():
     context = ModbusServerContext(slaves=store, single=True)
 
     #run server
-    mtcp_server = ModbusTcpServer(context, address=("localhost", 2605))
-    mtcp_server.serve_forever()
-    
-#def monitor_server():
-#    global server_running
-#    while(server_running):
-#        if a_outputs.getValues(50)[0] == KILL_SIGNAL:
-#            self.stop()
-#            server_running = False
-#        time.sleep(1)
-    
-server_thread = threading.Thread(target=run_server)
-#monitor_thread = threading.Thread(target=monitor_server)
+    try:
+        mtcp_server = ModbusTcpServer(context, address=("sdlocalhost", 2605))
+        mtcp_server.serve_forever()
+    except socket.gaierror:
+        print("Something is wrong")
+        mtcp_server = None
+        a_outputs.setValues(KILL_ADDRESS, KILL_SIGNAL)
 
-def start():
-    global server_running
-    #server_running = True
+def start(server_settings):
+    server_thread = threading.Thread(target=run_server)
     server_thread.start()
-    #monitor_thread.start()
 
 def stop():
-    mtcp_server.server_close()
-    mtcp_server.shutdown()
+    if mtcp_server != None:
+        mtcp_server.server_close()
+        mtcp_server.shutdown()
     
